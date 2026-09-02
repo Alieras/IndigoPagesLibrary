@@ -1,0 +1,29 @@
+# Dependencies
+frontend/node_modules/
+frontend/dist/
+
+# .NET build files
+backend/bin/
+backend/obj/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Local application settings
+appsettings.Local.json
+appsettings.*.Local.json
+backend/appsettings.json
+
+# Visual Studio / VS Code local files
+.vs/
+*.user
+*.suo
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
