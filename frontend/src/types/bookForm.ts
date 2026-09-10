@@ -4,6 +4,7 @@ export interface BookFormData {
   author: string;
   publisher: string;
   publicationYear: string;
+  pageCount: string;
   category: string;
   language: string;
   description: string;

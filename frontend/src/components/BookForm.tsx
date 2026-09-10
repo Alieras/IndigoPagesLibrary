@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { getAuthors, type Author } from "../services/authorService";
+import { getPublishers, type Publisher } from "../services/publisherService";
+import { getCategories } from "../services/categoryService";
+import { createBook } from "../services/bookService";
+
+import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { BookFormData } from "../types/bookForm";
+import type { Category } from "../types/category";
 import { isValidIsbn } from "../utils/isbn";
 import { useNavigate } from "react-router-dom";
 
@@ -17,6 +23,7 @@ type BookFormErrors = {
   author?: string;
   publisher?: string;
   publicationYear?: string;
+  pageCount?: string;
   category?: string;
   language?: string;
   description?: string;
@@ -25,13 +32,51 @@ type BookFormErrors = {
 };
 
 function BookForm() {
+  const [authors, setAuthors] = useState<Author[]>([]);
+  const [publishers, setPublishers] = useState<Publisher[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    async function loadAuthors() {
+      try {
+        const data = await getAuthors();
+        setAuthors(data);
+      } catch (error) {
+        console.error("Error al cargar los autores:", error);
+      }
+    }
+
+    async function loadPublishers() {
+      try {
+        const data = await getPublishers();
+        setPublishers(data);
+      } catch (error) {
+        console.error("Error al cargar las editoriales:", error);
+      }
+    }
+
+    async function loadCategories() {
+      try {
+        const data = await getCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error("Error al cargar las categorías:", error);
+      }
+    }
+
+    loadAuthors();
+    loadPublishers();
+    loadCategories();
+  }, []);
+
   const [formData, setFormData] = useState<BookFormData>({
     isbn: "",
     title: "",
     author: "",
     publisher: "",
     publicationYear: "",
+    pageCount: "",
     category: "",
     language: "",
     description: "",
@@ -39,6 +84,7 @@ function BookForm() {
     location: "",
     coverImage: null,
   });
+
 
   const [errors, setErrors] = useState<BookFormErrors>({});
 
@@ -62,160 +108,171 @@ function BookForm() {
     }));
   };
 
-const handleImageChange = (
-  event: ChangeEvent<HTMLInputElement>
-) => {
-  const file = event.target.files?.[0];
+  const handleImageChange = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
 
-  if (!file) {
-    return;
-  }
-
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-  ];
-
-  const maxFileSize = 5 * 1024 * 1024; // 5 MB
-
-  if (!allowedTypes.includes(file.type)) {
-    setErrors((previous) => ({
-      ...previous,
-      coverImage:
-        "La portada debe ser una imagen JPG, PNG o WebP.",
-    }));
-
-    event.target.value = "";
-    return;
-  }
-
-  if (file.size > maxFileSize) {
-    setErrors((previous) => ({
-      ...previous,
-      coverImage:
-        "La portada no puede superar los 5 MB.",
-    }));
-
-    event.target.value = "";
-    return;
-  }
-
-  setFormData((previous) => ({
-    ...previous,
-    coverImage: file,
-  }));
-
-  const imageUrl = URL.createObjectURL(file);
-
-  setCoverPreview((previous) => {
-    if (previous) {
-      URL.revokeObjectURL(previous);
+    if (!file) {
+      return;
     }
 
-    return imageUrl;
-  });
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ];
 
-  setErrors((previous) => ({
-    ...previous,
-    coverImage: undefined,
-  }));
-};
+    const maxFileSize = 5 * 1024 * 1024; // 5 MB
 
-const removeImage = () => {
-  setCoverPreview((previous) => {
-    if (previous) {
-      URL.revokeObjectURL(previous);
+    if (!allowedTypes.includes(file.type)) {
+      setErrors((previous) => ({
+        ...previous,
+        coverImage:
+          "La portada debe ser una imagen JPG, PNG o WebP.",
+      }));
+
+      event.target.value = "";
+      return;
     }
 
-    return null;
-  });
+    if (file.size > maxFileSize) {
+      setErrors((previous) => ({
+        ...previous,
+        coverImage:
+          "La portada no puede superar los 5 MB.",
+      }));
 
-  setFormData((previous) => ({
-    ...previous,
-    coverImage: null,
-  }));
-};
+      event.target.value = "";
+      return;
+    }
+
+    setFormData((previous) => ({
+      ...previous,
+      coverImage: file,
+    }));
+
+    const imageUrl = URL.createObjectURL(file);
+
+    setCoverPreview((previous) => {
+      if (previous) {
+        URL.revokeObjectURL(previous);
+      }
+
+      return imageUrl;
+    });
+
+    setErrors((previous) => ({
+      ...previous,
+      coverImage: undefined,
+    }));
+  };
+
+  const removeImage = () => {
+    setCoverPreview((previous) => {
+      if (previous) {
+        URL.revokeObjectURL(previous);
+      }
+
+      return null;
+    });
+
+    setFormData((previous) => ({
+      ...previous,
+      coverImage: null,
+    }));
+  };
 
   const validateForm = (): boolean => {
-  const newErrors: BookFormErrors = {};
+    const newErrors: BookFormErrors = {};
 
-  const currentYear = new Date().getFullYear();
+    const currentYear = new Date().getFullYear();
 
-  // ISBN
-  if (!formData.isbn.trim()) {
-    newErrors.isbn = "El ISBN es obligatorio.";
-  } else if (!isValidIsbn(formData.isbn)) {
-    newErrors.isbn = "Ingresa un ISBN-10 o ISBN-13 válido.";
-  }
-
-  // Title
-  if (!formData.title.trim()) {
-    newErrors.title = "El título es obligatorio.";
-  }
-
-  // Author
-  if (!formData.author.trim()) {
-    newErrors.author = "El autor es obligatorio.";
-  }
-
-  // Publisher
-  if (!formData.publisher.trim()) {
-    newErrors.publisher = "La editorial es obligatoria.";
-  }
-
-  // Publication year
-  if (!formData.publicationYear) {
-    newErrors.publicationYear =
-      "El año de publicación es obligatorio.";
-  } else {
-    const year = Number(formData.publicationYear);
-
-    if (!Number.isInteger(year)) {
-      newErrors.publicationYear =
-        "El año debe ser un número entero.";
-    } else if (year < 1000 || year > currentYear) {
-      newErrors.publicationYear =
-        `Ingresa un año entre 1000 y ${currentYear}.`;
+    // ISBN
+    if (!formData.isbn.trim()) {
+      newErrors.isbn = "El ISBN es obligatorio.";
+    } else if (!isValidIsbn(formData.isbn)) {
+      newErrors.isbn = "Ingresa un ISBN-10 o ISBN-13 válido.";
     }
-  }
 
-  // Category
-  if (!formData.category) {
-    newErrors.category = "Selecciona una categoría.";
-  }
-
-  // Language
-  if (!formData.language) {
-    newErrors.language = "Selecciona un idioma.";
-  }
-
-  // Description
-  if (!formData.description.trim()) {
-    newErrors.description =
-      "La descripción es obligatoria.";
-  }
-
-  // Total copies
-  if (!formData.totalCopies) {
-    newErrors.totalCopies =
-      "La cantidad de copias es obligatoria.";
-  } else {
-    const totalCopies = Number(formData.totalCopies);
-
-    if (!Number.isInteger(totalCopies)) {
-      newErrors.totalCopies =
-        "La cantidad de copias debe ser un número entero.";
-    } else if (totalCopies < 1) {
-      newErrors.totalCopies =
-        "Debe existir al menos una copia.";
+    // Title
+    if (!formData.title.trim()) {
+      newErrors.title = "El título es obligatorio.";
     }
-  }
 
-  setErrors(newErrors);
+    // Author
+    if (!formData.author.trim()) {
+      newErrors.author = "El autor es obligatorio.";
+    }
 
-  return Object.keys(newErrors).length === 0;
-};
+    // Publisher
+    if (!formData.publisher.trim()) {
+      newErrors.publisher = "La editorial es obligatoria.";
+    }
+
+    // Publication year
+    if (!formData.publicationYear) {
+      newErrors.publicationYear =
+        "El año de publicación es obligatorio.";
+    } else {
+      const year = Number(formData.publicationYear);
+
+      if (!Number.isInteger(year)) {
+        newErrors.publicationYear =
+          "El año debe ser un número entero.";
+      } else if (year < 1000 || year > currentYear) {
+        newErrors.publicationYear =
+          `Ingresa un año entre 1000 y ${currentYear}.`;
+      }
+    }
+
+    if (!formData.pageCount.trim()) {
+      newErrors.pageCount = "El número de páginas es obligatorio.";
+    } else {
+      const pageCount = Number(formData.pageCount);
+
+      if (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 10000) {
+        newErrors.pageCount =
+          "El número de páginas debe ser un número entero entre 1 y 10 000.";
+      }
+    }
+
+    // Category
+    if (!formData.category) {
+      newErrors.category = "Selecciona una categoría.";
+    }
+
+    // Language
+    if (!formData.language) {
+      newErrors.language = "Selecciona un idioma.";
+    }
+
+    // Description
+    if (!formData.description.trim()) {
+      newErrors.description =
+        "La descripción es obligatoria.";
+    }
+
+    // Total copies
+    if (!formData.totalCopies) {
+      newErrors.totalCopies =
+        "La cantidad de copias es obligatoria.";
+    } else {
+      const totalCopies = Number(formData.totalCopies);
+
+      if (!Number.isInteger(totalCopies)) {
+        newErrors.totalCopies =
+          "La cantidad de copias debe ser un número entero.";
+      } else if (totalCopies < 1) {
+        newErrors.totalCopies =
+          "Debe existir al menos una copia.";
+      }
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  };
 
   return (
     <section className="p-6 lg:p-8">
@@ -233,21 +290,33 @@ const removeImage = () => {
         </div>
 
         <form
-            onSubmit={(event) => {
-                event.preventDefault();
+          onSubmit={async (event) => {
+            event.preventDefault();
 
-                if (!validateForm()) {
-                return;
-                }
+            if (!validateForm()) {
+              return;
+            }
 
-                console.log("Formulario válido:", {
-                ...formData,
-                totalCopies: Number(formData.totalCopies),
-                availableCopies: Number(formData.totalCopies),
-                });
-            }}
-            className="mt-8 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]"
-            >
+            const bookData = {
+              isbn: formData.isbn.trim(),
+              title: formData.title.trim(),
+              description: formData.description.trim() || undefined,
+              pageCount: Number(formData.pageCount),
+              publicationYear: Number(formData.publicationYear),
+              language: formData.language.trim(),
+              publisherId: formData.publisher,
+              categoryId: formData.category,
+              authorIds: [formData.author],
+            };
+
+            await createBook(bookData);
+
+            alert("Libro registrado correctamente.");
+
+            navigate("/catalogo");
+          }}
+          className="mt-8 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]"
+        >
 
           {/* Book information */}
           <div className="border-b border-[var(--color-border)] p-6 lg:p-8">
@@ -351,11 +420,10 @@ const removeImage = () => {
                     value={formData.isbn}
                     onChange={handleChange}
                     placeholder="Ej. 978-0307474728"
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
-                      errors.isbn
-                        ? "border-[var(--color-danger)]"
-                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                    }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.isbn
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                      }`}
                   />
 
                   {errors.isbn && (
@@ -382,11 +450,10 @@ const removeImage = () => {
                     value={formData.title}
                     onChange={handleChange}
                     placeholder="Título del libro"
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
-                      errors.title
-                        ? "border-[var(--color-danger)]"
-                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                    }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.title
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                      }`}
                   />
 
                   {errors.title && (
@@ -406,19 +473,26 @@ const removeImage = () => {
                     <span className="text-[var(--color-danger)]">*</span>
                   </label>
 
-                  <input
+                  <select
                     id="author"
                     name="author"
-                    type="text"
                     value={formData.author}
                     onChange={handleChange}
-                    placeholder="Nombre del autor"
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
-                      errors.author
-                        ? "border-[var(--color-danger)]"
-                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                    }`}
-                  />
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.author
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                      }`}
+                  >
+                    <option value="" disabled>
+                      Seleccionar autor
+                    </option>
+
+                    {authors.map((author) => (
+                      <option key={author.id} value={author.id}>
+                        {author.firstName} {author.lastName}
+                      </option>
+                    ))}
+                  </select>
 
                   {errors.author && (
                     <p className="mt-1.5 text-xs text-[var(--color-danger)]">
@@ -437,19 +511,26 @@ const removeImage = () => {
                     <span className="text-[var(--color-danger)]">*</span>
                   </label>
 
-                  <input
+                  <select
                     id="publisher"
                     name="publisher"
-                    type="text"
                     value={formData.publisher}
                     onChange={handleChange}
-                    placeholder="Editorial"
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
-                      errors.publisher
-                        ? "border-[var(--color-danger)]"
-                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                    }`}
-                  />
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.publisher
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                      }`}
+                  >
+                    <option value="" disabled>
+                      Seleccionar editorial
+                    </option>
+
+                    {publishers.map((publisher) => (
+                      <option key={publisher.id} value={publisher.id}>
+                        {publisher.name}
+                      </option>
+                    ))}
+                  </select>
 
                   {errors.publisher && (
                     <p className="mt-1.5 text-xs text-[var(--color-danger)]">
@@ -475,16 +556,46 @@ const removeImage = () => {
                     value={formData.publicationYear}
                     onChange={handleChange}
                     placeholder="Ej. 2020"
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
-                      errors.publicationYear
-                        ? "border-[var(--color-danger)]"
-                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                    }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.publicationYear
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                      }`}
                   />
 
                   {errors.publicationYear && (
                     <p className="mt-1.5 text-xs text-[var(--color-danger)]">
                       {errors.publicationYear}
+                    </p>
+                  )}
+                </div>
+
+                {/* Page count */}
+                <div>
+                  <label
+                    htmlFor="pageCount"
+                    className="text-sm font-medium text-[var(--color-text)]"
+                  >
+                    Número de páginas{" "}
+                    <span className="text-[var(--color-danger)]">*</span>
+                  </label>
+
+                  <input
+                    id="pageCount"
+                    name="pageCount"
+                    type="number"
+                    min="1"
+                    value={formData.pageCount}
+                    onChange={handleChange}
+                    placeholder="Ej. 350"
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.pageCount
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                      }`}
+                  />
+
+                  {errors.pageCount && (
+                    <p className="mt-1.5 text-xs text-[var(--color-danger)]">
+                      {errors.pageCount}
                     </p>
                   )}
                 </div>
@@ -504,20 +615,20 @@ const removeImage = () => {
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${
-                      errors.category
-                        ? "border-[var(--color-danger)]"
-                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                    }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.category
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                      }`}
                   >
                     <option value="" disabled>
                       Seleccionar categoría
                     </option>
 
-                    <option value="Novela">Novela</option>
-                    <option value="Fantasía">Fantasía</option>
-                    <option value="Distopía">Distopía</option>
-                    <option value="Romance">Romance</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
                   </select>
 
                   {errors.category && (
@@ -542,11 +653,10 @@ const removeImage = () => {
                     name="language"
                     value={formData.language}
                     onChange={handleChange}
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${
-                      errors.language
-                        ? "border-[var(--color-danger)]"
-                        : "border-[var(--color-border)]"
-                    }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.language
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)]"
+                      }`}
                   >
                     <option value="" disabled>
                       Seleccionar idioma
@@ -584,11 +694,10 @@ const removeImage = () => {
                     onChange={handleChange}
                     rows={4}
                     placeholder="Describe brevemente el contenido del libro..."
-                    className={`mt-2 w-full resize-none rounded-xl border bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
-                      errors.description
-                        ? "border-[var(--color-danger)]"
-                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                    }`}
+                    className={`mt-2 w-full resize-none rounded-xl border bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.description
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                      }`}
                   />
 
                   {errors.description && (
@@ -634,11 +743,10 @@ const removeImage = () => {
                   value={formData.totalCopies}
                   onChange={handleChange}
                   placeholder="Ej. 5"
-                  className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
-                    errors.totalCopies
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                  }`}
+                  className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.totalCopies
+                    ? "border-[var(--color-danger)]"
+                    : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                    }`}
                 />
 
                 {errors.totalCopies ? (

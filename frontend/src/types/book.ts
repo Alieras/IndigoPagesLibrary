@@ -1,17 +1,26 @@
+export interface BookAuthor {
+  id: string;
+  firstName: string;
+  lastName: string;
+  authorOrder: number;
+}
+
 export interface Book {
   id: string;
   isbn: string;
   title: string;
-  author: string;
-  publisher: string;
+  description?: string;
+  pageCount: number;
   publicationYear: number;
-  category: string;
   language: string;
-  description: string;
-  totalCopies: number;
-  availableCopies: number;
-  location?: string;
+
+  publisherId: string;
+  publisherName: string;
+
+  categoryId: string;
+  categoryName: string;
+
   coverImageUrl?: string;
-  createdAt: string;
-  updatedAt: string;
+
+  authors: BookAuthor[];
 }

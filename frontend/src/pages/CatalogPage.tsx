@@ -1,3 +1,6 @@
+import type { Category } from "../types/category";
+import { getCategories } from "../services/categoryService";
+
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Book } from "../types/book";
@@ -12,80 +15,11 @@ import {
     Search,
 } from "lucide-react";
 
-const mockBooks: Book[] = [
-    {
-        id: "550e8400-e29b-41d4-a716-446655440001",
-        isbn: "978-0307474728",
-        title: "Cien años de soledad",
-        author: "Gabriel García Márquez",
-        publisher: "Editorial Sudamericana",
-        publicationYear: 1967,
-        category: "Novela",
-        language: "Español",
-        description:
-            "Novela que narra la historia de la familia Buendía a través de varias generaciones.",
-        totalCopies: 5,
-        availableCopies: 4,
-        location: "Estante A-01",
-        createdAt: "2026-09-01T10:00:00",
-        updatedAt: "2026-09-01T10:00:00",
-    },
-    {
-        id: "550e8400-e29b-41d4-a716-446655440002",
-        isbn: "978-0756404741",
-        title: "El nombre del viento",
-        author: "Patrick Rothfuss",
-        publisher: "DAW Books",
-        publicationYear: 2007,
-        category: "Fantasía",
-        language: "Español",
-        description:
-            "Primera parte de la historia de Kvothe, un músico y aventurero legendario.",
-        totalCopies: 3,
-        availableCopies: 2,
-        location: "Estante B-02",
-        createdAt: "2026-09-01T10:00:00",
-        updatedAt: "2026-09-01T10:00:00",
-    },
-    {
-        id: "550e8400-e29b-41d4-a716-446655440003",
-        isbn: "978-0451524935",
-        title: "1984",
-        author: "George Orwell",
-        publisher: "Secker & Warburg",
-        publicationYear: 1949,
-        category: "Distopía",
-        language: "Español",
-        description:
-            "Novela distópica sobre una sociedad sometida a vigilancia y control totalitario.",
-        totalCopies: 4,
-        availableCopies: 0,
-        location: "Estante C-01",
-        createdAt: "2026-09-01T10:00:00",
-        updatedAt: "2026-09-01T10:00:00",
-    },
-    {
-        id: "550e8400-e29b-41d4-a716-446655440004",
-        isbn: "978-0141439518",
-        title: "Orgullo y prejuicio",
-        author: "Jane Austen",
-        publisher: "T. Egerton",
-        publicationYear: 1813,
-        category: "Romance",
-        language: "Español",
-        description:
-            "Novela que sigue las relaciones, conflictos y prejuicios de la familia Bennet.",
-        totalCopies: 3,
-        availableCopies: 3,
-        location: "Estante D-03",
-        createdAt: "2026-09-01T10:00:00",
-        updatedAt: "2026-09-01T10:00:00",
-    },
-];
 
 function CatalogPage() {
     const navigate = useNavigate();
-    const [books, setBooks] = useState<Book[]>(mockBooks);
+    const [books, setBooks] = useState<Book[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
 
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("Todas");
@@ -93,38 +27,46 @@ function CatalogPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        async function loadBooks() {
+        async function loadCatalogData() {
             setIsLoading(true);
             setError(null);
 
             try {
-                const data = await getBooks();
+                const booksData = await getBooks();
+                const categoriesData = await getCategories();
 
-                setBooks(data);
+                setBooks(booksData);
+                setCategories(categoriesData);
             } catch (error) {
-                console.error("Error al cargar los libros:", error);
+                console.error("Error al cargar los datos:", error);
 
                 setError(
-                    "No fue posible cargar los libros. Intenta nuevamente."
+                    "No fue posible cargar la información de la biblioteca. Intenta nuevamente."
                 );
             } finally {
                 setIsLoading(false);
             }
         }
-        loadBooks();
+
+        loadCatalogData();
     }, []);
 
     const filteredBooks = useMemo(() => {
         const normalizedSearch = searchTerm.trim().toLowerCase();
 
         return books.filter((book) => {
+            const authorNames = book.authors
+                .map((author) => `${author.firstName} ${author.lastName}`)
+                .join(", ");
+
             const matchesSearch =
                 !normalizedSearch ||
                 [
                     book.title,
-                    book.author,
+                    authorNames,
                     book.isbn,
-                    book.category,
+                    book.categoryName,
+                    book.publisherName,
                     String(book.publicationYear),
                 ].some((value) =>
                     value.toLowerCase().includes(normalizedSearch)
@@ -132,7 +74,7 @@ function CatalogPage() {
 
             const matchesCategory =
                 selectedCategory === "Todas" ||
-                book.category === selectedCategory;
+                book.categoryName === selectedCategory;
 
             return matchesSearch && matchesCategory;
         });
@@ -194,10 +136,12 @@ function CatalogPage() {
                         className="appearance-none rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] py-2.5 pl-10 pr-10 text-sm font-medium text-[var(--color-text)] outline-none transition hover:border-[var(--color-secondary)] focus:border-[var(--color-info)] focus:ring-2 focus:ring-[var(--color-info)]/20"
                     >
                         <option value="Todas">Todas las categorías</option>
-                        <option value="Novela">Novela</option>
-                        <option value="Fantasía">Fantasía</option>
-                        <option value="Distopía">Distopía</option>
-                        <option value="Romance">Romance</option>
+
+                        {categories.map((category) => (
+                            <option key={category.id} value={category.name}>
+                                {category.name}
+                            </option>
+                        ))}
                     </select>
                 </div>
             </div>

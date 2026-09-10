@@ -1,4 +1,4 @@
-import { BookOpen, CheckCircle2 } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import type { Book } from "../types/book";
 import { useNavigate } from "react-router-dom";
 
@@ -8,26 +8,37 @@ interface BookCardProps {
 
 function BookCard({ book }: BookCardProps) {
   const navigate = useNavigate();
-  const isAvailable = book.availableCopies > 0;
+
+  const authorNames = book.authors
+    .map((author) => `${author.firstName} ${author.lastName}`)
+    .join(", ");
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition duration-200 hover:-translate-y-1 hover:shadow-lg">
       {/* Cover */}
       <div className="flex h-52 items-center justify-center bg-[var(--color-surface-elevated)]">
-        <div className="flex h-32 w-24 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-primary)] shadow-md transition group-hover:scale-105">
-          <BookOpen
-            size={38}
-            strokeWidth={1.6}
-            className="text-[var(--color-secondary)]"
+        {book.coverImageUrl ? (
+          <img
+            src={book.coverImageUrl}
+            alt={`Portada de ${book.title}`}
+            className="h-full w-full object-cover"
           />
-        </div>
+        ) : (
+          <div className="flex h-32 w-24 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-primary)] shadow-md transition group-hover:scale-105">
+            <BookOpen
+              size={38}
+              strokeWidth={1.6}
+              className="text-[var(--color-secondary)]"
+            />
+          </div>
+        )}
       </div>
 
       {/* Information */}
       <div className="p-5">
         <div className="mb-3 flex items-start justify-between gap-3">
           <span className="rounded-full bg-[var(--color-secondary)]/15 px-2.5 py-1 text-xs font-medium text-[var(--color-secondary)]">
-            {book.category}
+            {book.categoryName}
           </span>
 
           <span className="text-xs text-[var(--color-text-muted)]">
@@ -40,35 +51,30 @@ function BookCard({ book }: BookCardProps) {
         </h3>
 
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          {book.author}
+          {authorNames || "Autor no registrado"}
         </p>
 
-        {/* Availability */}
-        <div className="mt-5 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
-          <div className="flex items-center gap-2">
-            <CheckCircle2
-              size={17}
-              className={
-                isAvailable
-                  ? "text-[var(--color-success)]"
-                  : "text-[var(--color-danger)]"
-              }
-            />
+        {/* Basic information */}
+        <div className="mt-5 border-t border-[var(--color-border)] pt-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--color-text-muted)]">
+              Editorial
+            </span>
 
-            <span
-              className={`text-sm font-medium ${
-                isAvailable
-                  ? "text-[var(--color-success)]"
-                  : "text-[var(--color-danger)]"
-              }`}
-            >
-              {isAvailable ? "Disponible" : "No disponible"}
+            <span className="max-w-[60%] truncate text-right text-xs font-medium text-[var(--color-text)]">
+              {book.publisherName}
             </span>
           </div>
 
-          <span className="text-xs text-[var(--color-text-muted)]">
-            {book.availableCopies}/{book.totalCopies}
-          </span>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-[var(--color-text-muted)]">
+              Idioma
+            </span>
+
+            <span className="text-xs font-medium text-[var(--color-text)]">
+              {book.language}
+            </span>
+          </div>
         </div>
 
         {/* Detail action */}
