@@ -5,7 +5,8 @@ export interface BookFormData {
   publisher: string;
   publicationYear: string;
   pageCount: string;
-  category: string;
+  categoryIds: string[];
+  format: string;
   language: string;
   description: string;
   totalCopies: string;

@@ -5,6 +5,11 @@ export interface BookAuthor {
   authorOrder: number;
 }
 
+export interface BookCategory {
+  id: string;
+  name: string;
+}
+
 export interface Book {
   id: string;
   isbn: string;
@@ -17,8 +22,10 @@ export interface Book {
   publisherId: string;
   publisherName: string;
 
-  categoryId: string;
-  categoryName: string;
+  formatId: string;
+  formatName: string;
+
+  categories: BookCategory[];
 
   coverImageUrl?: string;
 

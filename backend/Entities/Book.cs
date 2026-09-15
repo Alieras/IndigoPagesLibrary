@@ -18,7 +18,7 @@ public class Book
 
     public Guid PublisherId { get; set; }
 
-    public Guid CategoryId { get; set; }
+    public Guid FormatId { get; set; }
 
     public string? CoverImageUrl { get; set; }
 

@@ -116,7 +116,6 @@ CREATE TABLE Publishers (
     UpdatedAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-
 -- 7. USER ROLES
 
 CREATE TABLE UserRoles (
@@ -222,7 +221,6 @@ CREATE TABLE BookAuthors (
     CONSTRAINT CK_BookAuthors_AuthorOrder
         CHECK (AuthorOrder > 0)
 );
-
 
 -- 11. COPIES
 

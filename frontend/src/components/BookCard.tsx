@@ -38,7 +38,7 @@ function BookCard({ book }: BookCardProps) {
       <div className="p-5">
         <div className="mb-3 flex items-start justify-between gap-3">
           <span className="rounded-full bg-[var(--color-secondary)]/15 px-2.5 py-1 text-xs font-medium text-[var(--color-secondary)]">
-            {book.categoryName}
+            {book.categories.map((category) => category.name).join(" · ")}
           </span>
 
           <span className="text-xs text-[var(--color-text-muted)]">

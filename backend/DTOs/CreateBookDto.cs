@@ -29,11 +29,15 @@ public class CreateBookDto
     public Guid PublisherId { get; set; }
 
     [Required]
-    public Guid CategoryId { get; set; }
+    public Guid FormatId { get; set; }
 
-    public string? CoverImageUrl { get; set; }
+    [Required]
+    [MinLength(1)]
+    public List<Guid> CategoryIds { get; set; } = [];
 
     [Required]
     [MinLength(1)]
     public List<Guid> AuthorIds { get; set; } = [];
+
+    public string? CoverImageUrl { get; set; }
 }

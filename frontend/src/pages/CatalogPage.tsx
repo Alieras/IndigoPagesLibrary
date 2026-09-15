@@ -65,7 +65,7 @@ function CatalogPage() {
                     book.title,
                     authorNames,
                     book.isbn,
-                    book.categoryName,
+                    book.categories.map((category) => category.name).join(" "),
                     book.publisherName,
                     String(book.publicationYear),
                 ].some((value) =>
@@ -74,7 +74,9 @@ function CatalogPage() {
 
             const matchesCategory =
                 selectedCategory === "Todas" ||
-                book.categoryName === selectedCategory;
+                book.categories.some(
+                    (category) => category.name === selectedCategory
+)
 
             return matchesSearch && matchesCategory;
         });

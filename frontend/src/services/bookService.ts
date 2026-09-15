@@ -14,7 +14,8 @@ export interface CreateBookData {
     publicationYear: number;
     language: string;
     publisherId: string;
-    categoryId: string;
+    formatId: string;
+    categoryIds: string[];
     coverImageUrl?: string;
     authorIds: string[];
 }

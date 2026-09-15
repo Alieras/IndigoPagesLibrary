@@ -2,7 +2,9 @@ import { getAuthors, type Author } from "../services/authorService";
 import { getPublishers, type Publisher } from "../services/publisherService";
 import { getCategories } from "../services/categoryService";
 import { createBook } from "../services/bookService";
+import { getFormats, type Format } from "../services/formatService";
 
+import Toast from "./Toast";
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { BookFormData } from "../types/bookForm";
@@ -24,7 +26,8 @@ type BookFormErrors = {
   publisher?: string;
   publicationYear?: string;
   pageCount?: string;
-  category?: string;
+  categoryIds?: string;
+  format?: string;
   language?: string;
   description?: string;
   totalCopies?: string;
@@ -35,6 +38,7 @@ function BookForm() {
   const [authors, setAuthors] = useState<Author[]>([]);
   const [publishers, setPublishers] = useState<Publisher[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [formats, setFormats] = useState<Format[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -65,9 +69,19 @@ function BookForm() {
       }
     }
 
+    async function loadFormats() {
+    try {
+        const data = await getFormats();
+        setFormats(data);
+    } catch (error) {
+        console.error("Error al cargar los formatos:", error);
+    }
+}
+
     loadAuthors();
     loadPublishers();
     loadCategories();
+    loadFormats()
   }, []);
 
   const [formData, setFormData] = useState<BookFormData>({
@@ -77,7 +91,8 @@ function BookForm() {
     publisher: "",
     publicationYear: "",
     pageCount: "",
-    category: "",
+    categoryIds: [],
+    format: "",
     language: "",
     description: "",
     totalCopies: "",
@@ -87,6 +102,11 @@ function BookForm() {
 
 
   const [errors, setErrors] = useState<BookFormErrors>({});
+
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
@@ -238,8 +258,9 @@ function BookForm() {
     }
 
     // Category
-    if (!formData.category) {
-      newErrors.category = "Selecciona una categoría.";
+    // Categories
+    if (formData.categoryIds.length === 0) {
+      newErrors.categoryIds = "Selecciona al menos una categoría.";
     }
 
     // Language
@@ -275,6 +296,15 @@ function BookForm() {
   };
 
   return (
+  <>
+    {toast && (
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast(null)}
+      />
+    )}
+
     <section className="p-6 lg:p-8">
       <div className="mx-auto max-w-6xl">
 
@@ -305,15 +335,21 @@ function BookForm() {
               publicationYear: Number(formData.publicationYear),
               language: formData.language.trim(),
               publisherId: formData.publisher,
-              categoryId: formData.category,
+              formatId: formData.format,
+              categoryIds: formData.categoryIds,
               authorIds: [formData.author],
             };
 
             await createBook(bookData);
 
-            alert("Libro registrado correctamente.");
+            setToast({
+              message: "Libro registrado correctamente.",
+              type: "success",
+            });
 
-            navigate("/catalogo");
+            setTimeout(() => {
+              navigate("/catalogo");
+            }, 1200);
           }}
           className="mt-8 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]"
         >
@@ -420,10 +456,11 @@ function BookForm() {
                     value={formData.isbn}
                     onChange={handleChange}
                     placeholder="Ej. 978-0307474728"
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.isbn
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                      }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                      errors.isbn
+                        ? "border-[var(--color-danger)]"
+                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                    }`}
                   />
 
                   {errors.isbn && (
@@ -450,10 +487,11 @@ function BookForm() {
                     value={formData.title}
                     onChange={handleChange}
                     placeholder="Título del libro"
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.title
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                      }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                      errors.title
+                        ? "border-[var(--color-danger)]"
+                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                    }`}
                   />
 
                   {errors.title && (
@@ -478,10 +516,11 @@ function BookForm() {
                     name="author"
                     value={formData.author}
                     onChange={handleChange}
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.author
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                      }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                      errors.author
+                        ? "border-[var(--color-danger)]"
+                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                    }`}
                   >
                     <option value="" disabled>
                       Seleccionar autor
@@ -516,10 +555,11 @@ function BookForm() {
                     name="publisher"
                     value={formData.publisher}
                     onChange={handleChange}
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.publisher
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                      }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                      errors.publisher
+                        ? "border-[var(--color-danger)]"
+                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                    }`}
                   >
                     <option value="" disabled>
                       Seleccionar editorial
@@ -556,10 +596,11 @@ function BookForm() {
                     value={formData.publicationYear}
                     onChange={handleChange}
                     placeholder="Ej. 2020"
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.publicationYear
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                      }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                      errors.publicationYear
+                        ? "border-[var(--color-danger)]"
+                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                    }`}
                   />
 
                   {errors.publicationYear && (
@@ -587,10 +628,11 @@ function BookForm() {
                     value={formData.pageCount}
                     onChange={handleChange}
                     placeholder="Ej. 350"
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.pageCount
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                      }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                      errors.pageCount
+                        ? "border-[var(--color-danger)]"
+                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                    }`}
                   />
 
                   {errors.pageCount && (
@@ -600,40 +642,114 @@ function BookForm() {
                   )}
                 </div>
 
-                {/* Category */}
+                {/* Format */}
                 <div>
                   <label
-                    htmlFor="category"
+                    htmlFor="format"
                     className="text-sm font-medium text-[var(--color-text)]"
                   >
-                    Categoría{" "}
+                    Formato{" "}
                     <span className="text-[var(--color-danger)]">*</span>
                   </label>
 
                   <select
-                    id="category"
-                    name="category"
-                    value={formData.category}
+                    id="format"
+                    name="format"
+                    value={formData.format}
                     onChange={handleChange}
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.category
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                      }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                      errors.format
+                        ? "border-[var(--color-danger)]"
+                        : "border-[var(--color-border)] focus:border-[var(--color-info)]"
+                    }`}
                   >
                     <option value="" disabled>
-                      Seleccionar categoría
+                      Seleccionar formato
                     </option>
 
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
+                    {formats.map((format) => (
+                      <option key={format.id} value={format.id}>
+                        {format.name}
                       </option>
                     ))}
                   </select>
 
-                  {errors.category && (
+                  {errors.format && (
                     <p className="mt-1.5 text-xs text-[var(--color-danger)]">
-                      {errors.category}
+                      {errors.format}
+                    </p>
+                  )}
+                </div>
+
+                {/* Categories */}
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-[var(--color-text)]">
+                    Categorías{" "}
+                    <span className="text-[var(--color-danger)]">*</span>
+                  </label>
+
+                  <div
+                    className={`mt-2 grid gap-2 sm:grid-cols-2 ${
+                      errors.categoryIds
+                        ? "rounded-xl border border-[var(--color-danger)] p-2"
+                        : ""
+                    }`}
+                  >
+                    {categories.map((category) => {
+                      const isSelected = formData.categoryIds.includes(
+                        category.id
+                      );
+
+                      return (
+                        <label
+                          key={category.id}
+                          className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${
+                            isSelected
+                              ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]"
+                              : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] hover:border-[var(--color-primary)]"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              setFormData((previous) => {
+                                const categoryIds = isSelected
+                                  ? previous.categoryIds.filter(
+                                      (id) => id !== category.id
+                                    )
+                                  : [
+                                      ...previous.categoryIds,
+                                      category.id,
+                                    ];
+
+                                return {
+                                  ...previous,
+                                  categoryIds,
+                                };
+                              });
+
+                              setErrors((previous) => ({
+                                ...previous,
+                                categoryIds: undefined,
+                              }));
+                            }}
+                            className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                          />
+
+                          <span>{category.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {errors.categoryIds ? (
+                    <p className="mt-1.5 text-xs text-[var(--color-danger)]">
+                      {errors.categoryIds}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                      Puedes seleccionar una o varias categorías.
                     </p>
                   )}
                 </div>
@@ -653,10 +769,11 @@ function BookForm() {
                     name="language"
                     value={formData.language}
                     onChange={handleChange}
-                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.language
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)]"
-                      }`}
+                    className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                      errors.language
+                        ? "border-[var(--color-danger)]"
+                        : "border-[var(--color-border)]"
+                    }`}
                   >
                     <option value="" disabled>
                       Seleccionar idioma
@@ -694,10 +811,11 @@ function BookForm() {
                     onChange={handleChange}
                     rows={4}
                     placeholder="Describe brevemente el contenido del libro..."
-                    className={`mt-2 w-full resize-none rounded-xl border bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.description
-                      ? "border-[var(--color-danger)]"
-                      : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                      }`}
+                    className={`mt-2 w-full resize-none rounded-xl border bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                      errors.description
+                        ? "border-[var(--color-danger)]"
+                        : "border-[var(--color-border)]"
+                    }`}
                   />
 
                   {errors.description && (
@@ -706,6 +824,7 @@ function BookForm() {
                     </p>
                   )}
                 </div>
+
               </div>
             </div>
           </div>
@@ -743,10 +862,11 @@ function BookForm() {
                   value={formData.totalCopies}
                   onChange={handleChange}
                   placeholder="Ej. 5"
-                  className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${errors.totalCopies
-                    ? "border-[var(--color-danger)]"
-                    : "border-[var(--color-border)] focus:border-[var(--color-info)]"
-                    }`}
+                  className={`mt-2 w-full rounded-xl border bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-info)]/20 ${
+                    errors.totalCopies
+                      ? "border-[var(--color-danger)]"
+                      : "border-[var(--color-border)]"
+                  }`}
                 />
 
                 {errors.totalCopies ? (
@@ -782,6 +902,7 @@ function BookForm() {
                   className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-info)] focus:ring-2 focus:ring-[var(--color-info)]/20"
                 />
               </div>
+
             </div>
           </div>
 
@@ -805,9 +926,11 @@ function BookForm() {
             </button>
 
           </div>
+
         </form>
       </div>
-    </section>
+        </section>
+  </>
   );
 }
 

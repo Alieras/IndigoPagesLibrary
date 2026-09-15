@@ -17,6 +17,10 @@ public class BooksController : ControllerBase
         _context = context;
     }
 
+    // ============================================================
+    // GET: api/books
+    // ============================================================
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<BookResponseDto>>> GetBooks()
     {
@@ -32,17 +36,32 @@ public class BooksController : ControllerBase
                 PageCount = book.PageCount,
                 PublicationYear = book.PublicationYear,
                 Language = book.Language,
+
                 PublisherId = book.PublisherId,
+
                 PublisherName = _context.Publishers
                     .Where(publisher => publisher.Id == book.PublisherId)
                     .Select(publisher => publisher.Name)
                     .FirstOrDefault() ?? string.Empty,
-                CategoryId = book.CategoryId,
-                CategoryName = _context.Categories
-                    .Where(category => category.Id == book.CategoryId)
-                    .Select(category => category.Name)
+
+                FormatId = book.FormatId,
+
+                FormatName = _context.Formats
+                    .Where(format => format.Id == book.FormatId)
+                    .Select(format => format.Name)
                     .FirstOrDefault() ?? string.Empty,
+
                 CoverImageUrl = book.CoverImageUrl,
+
+                Categories = _context.BookCategories
+                    .Where(bookCategory => bookCategory.BookId == book.Id)
+                    .OrderBy(bookCategory => bookCategory.Category.Name)
+                    .Select(bookCategory => new BookCategoryResponseDto
+                    {
+                        Id = bookCategory.CategoryId,
+                        Name = bookCategory.Category.Name
+                    })
+                    .ToList(),
 
                 Authors = _context.BookAuthors
                     .Where(bookAuthor => bookAuthor.BookId == book.Id)
@@ -61,6 +80,11 @@ public class BooksController : ControllerBase
         return Ok(books);
     }
 
+
+    // ============================================================
+    // GET: api/books/{id}
+    // ============================================================
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<BookResponseDto>> GetBook(Guid id)
     {
@@ -78,18 +102,30 @@ public class BooksController : ControllerBase
                 Language = book.Language,
 
                 PublisherId = book.PublisherId,
+
                 PublisherName = _context.Publishers
                     .Where(publisher => publisher.Id == book.PublisherId)
                     .Select(publisher => publisher.Name)
                     .FirstOrDefault() ?? string.Empty,
 
-                CategoryId = book.CategoryId,
-                CategoryName = _context.Categories
-                    .Where(category => category.Id == book.CategoryId)
-                    .Select(category => category.Name)
+                FormatId = book.FormatId,
+
+                FormatName = _context.Formats
+                    .Where(format => format.Id == book.FormatId)
+                    .Select(format => format.Name)
                     .FirstOrDefault() ?? string.Empty,
 
                 CoverImageUrl = book.CoverImageUrl,
+
+                Categories = _context.BookCategories
+                    .Where(bookCategory => bookCategory.BookId == book.Id)
+                    .OrderBy(bookCategory => bookCategory.Category.Name)
+                    .Select(bookCategory => new BookCategoryResponseDto
+                    {
+                        Id = bookCategory.CategoryId,
+                        Name = bookCategory.Category.Name
+                    })
+                    .ToList(),
 
                 Authors = _context.BookAuthors
                     .Where(bookAuthor => bookAuthor.BookId == book.Id)
@@ -116,13 +152,21 @@ public class BooksController : ControllerBase
         return Ok(book);
     }
 
+
+    // ============================================================
+    // POST: api/books
+    // ============================================================
+
     [HttpPost]
     public async Task<ActionResult<BookResponseDto>> CreateBook(
-    CreateBookDto dto)
+        CreateBookDto dto)
     {
         var isbn = dto.ISBN.Trim();
 
-        // Validar formato y dígito de control del ISBN
+        // --------------------------------------------------------
+        // Validar ISBN
+        // --------------------------------------------------------
+
         if (!IsValidIsbn(isbn))
         {
             return BadRequest(new
@@ -131,7 +175,11 @@ public class BooksController : ControllerBase
             });
         }
 
+
+        // --------------------------------------------------------
         // Comprobar ISBN duplicado
+        // --------------------------------------------------------
+
         var isbnExists = await _context.Books
             .AnyAsync(book => book.ISBN == isbn);
 
@@ -143,7 +191,11 @@ public class BooksController : ControllerBase
             });
         }
 
+
+        // --------------------------------------------------------
         // Comprobar editorial
+        // --------------------------------------------------------
+
         var publisherExists = await _context.Publishers
             .AnyAsync(publisher =>
                 publisher.Id == dto.PublisherId &&
@@ -157,21 +209,66 @@ public class BooksController : ControllerBase
             });
         }
 
-        // Comprobar categoría
-        var categoryExists = await _context.Categories
-            .AnyAsync(category =>
-                category.Id == dto.CategoryId &&
-                category.IsActive);
 
-        if (!categoryExists)
+        // --------------------------------------------------------
+        // Comprobar formato
+        // --------------------------------------------------------
+
+        var formatExists = await _context.Formats
+            .AnyAsync(format =>
+                format.Id == dto.FormatId &&
+                format.IsActive);
+
+        if (!formatExists)
         {
             return BadRequest(new
             {
-                message = "La categoría seleccionada no existe o está inactiva."
+                message = "El formato seleccionado no existe o está inactivo."
             });
         }
 
-        // Eliminar autores repetidos manteniendo el orden recibido
+
+        // --------------------------------------------------------
+        // Validar categorías
+        // --------------------------------------------------------
+
+        var categoryIds = dto.CategoryIds
+            .Distinct()
+            .ToList();
+
+        if (categoryIds.Count == 0)
+        {
+            return BadRequest(new
+            {
+                message = "El libro debe tener al menos una categoría."
+            });
+        }
+
+
+        // --------------------------------------------------------
+        // Comprobar que todas las categorías existen y están activas
+        // --------------------------------------------------------
+
+        var activeCategoryIds = await _context.Categories
+            .Where(category =>
+                category.IsActive &&
+                categoryIds.Contains(category.Id))
+            .Select(category => category.Id)
+            .ToListAsync();
+
+        if (activeCategoryIds.Count != categoryIds.Count)
+        {
+            return BadRequest(new
+            {
+                message = "Una o más categorías no existen o están inactivas."
+            });
+        }
+
+
+        // --------------------------------------------------------
+        // Validar autores
+        // --------------------------------------------------------
+
         var authorIds = dto.AuthorIds
             .Distinct()
             .ToList();
@@ -184,7 +281,11 @@ public class BooksController : ControllerBase
             });
         }
 
-        // Comprobar que todos los autores existen y están activos
+
+        // --------------------------------------------------------
+        // Comprobar autores
+        // --------------------------------------------------------
+
         var activeAuthorIds = await _context.Authors
             .Where(author =>
                 author.IsActive &&
@@ -200,6 +301,11 @@ public class BooksController : ControllerBase
             });
         }
 
+
+        // --------------------------------------------------------
+        // Transacción
+        // --------------------------------------------------------
+
         await using var transaction =
             await _context.Database.BeginTransactionAsync();
 
@@ -210,24 +316,54 @@ public class BooksController : ControllerBase
             var book = new Book
             {
                 Id = Guid.NewGuid(),
+
                 ISBN = isbn,
+
                 Title = dto.Title.Trim(),
+
                 Description = string.IsNullOrWhiteSpace(dto.Description)
                     ? null
                     : dto.Description.Trim(),
+
                 PageCount = dto.PageCount,
+
                 PublicationYear = dto.PublicationYear,
+
                 Language = dto.Language.Trim(),
+
                 PublisherId = dto.PublisherId,
-                CategoryId = dto.CategoryId,
+
+                FormatId = dto.FormatId,
+
                 CoverImageUrl = string.IsNullOrWhiteSpace(dto.CoverImageUrl)
                     ? null
                     : dto.CoverImageUrl.Trim(),
+
                 CreatedAt = now,
+
                 UpdatedAt = now
             };
 
             _context.Books.Add(book);
+
+
+            // ----------------------------------------------------
+            // Agregar categorías
+            // ----------------------------------------------------
+
+            foreach (var categoryId in categoryIds)
+            {
+                _context.BookCategories.Add(new BookCategory
+                {
+                    BookId = book.Id,
+                    CategoryId = categoryId
+                });
+            }
+
+
+            // ----------------------------------------------------
+            // Agregar autores
+            // ----------------------------------------------------
 
             for (short i = 0; i < authorIds.Count; i++)
             {
@@ -239,8 +375,15 @@ public class BooksController : ControllerBase
                 });
             }
 
+
             await _context.SaveChangesAsync();
+
             await transaction.CommitAsync();
+
+
+            // ----------------------------------------------------
+            // Obtener respuesta
+            // ----------------------------------------------------
 
             var response = await _context.Books
                 .AsNoTracking()
@@ -248,28 +391,47 @@ public class BooksController : ControllerBase
                 .Select(currentBook => new BookResponseDto
                 {
                     Id = currentBook.Id,
+
                     ISBN = currentBook.ISBN,
+
                     Title = currentBook.Title,
+
                     Description = currentBook.Description,
+
                     PageCount = currentBook.PageCount,
+
                     PublicationYear = currentBook.PublicationYear,
+
                     Language = currentBook.Language,
 
                     PublisherId = currentBook.PublisherId,
+
                     PublisherName = _context.Publishers
                         .Where(publisher =>
                             publisher.Id == currentBook.PublisherId)
                         .Select(publisher => publisher.Name)
                         .FirstOrDefault() ?? string.Empty,
 
-                    CategoryId = currentBook.CategoryId,
-                    CategoryName = _context.Categories
-                        .Where(category =>
-                            category.Id == currentBook.CategoryId)
-                        .Select(category => category.Name)
+                    FormatId = currentBook.FormatId,
+
+                    FormatName = _context.Formats
+                        .Where(format =>
+                            format.Id == currentBook.FormatId)
+                        .Select(format => format.Name)
                         .FirstOrDefault() ?? string.Empty,
 
                     CoverImageUrl = currentBook.CoverImageUrl,
+
+                    Categories = _context.BookCategories
+                        .Where(bookCategory =>
+                            bookCategory.BookId == currentBook.Id)
+                        .OrderBy(bookCategory => bookCategory.Category.Name)
+                        .Select(bookCategory => new BookCategoryResponseDto
+                        {
+                            Id = bookCategory.CategoryId,
+                            Name = bookCategory.Category.Name
+                        })
+                        .ToList(),
 
                     Authors = _context.BookAuthors
                         .Where(bookAuthor =>
@@ -286,6 +448,7 @@ public class BooksController : ControllerBase
                 })
                 .FirstAsync();
 
+
             return CreatedAtAction(
                 nameof(GetBook),
                 new { id = book.Id },
@@ -301,6 +464,11 @@ public class BooksController : ControllerBase
             });
         }
     }
+
+
+    // ============================================================
+    // ISBN VALIDATION
+    // ============================================================
 
     private static bool IsValidIsbn(string isbn)
     {
@@ -320,6 +488,7 @@ public class BooksController : ControllerBase
 
         return false;
     }
+
 
     private static bool IsValidIsbn10(string isbn)
     {
@@ -361,6 +530,7 @@ public class BooksController : ControllerBase
 
         return sum % 11 == 0;
     }
+
 
     private static bool IsValidIsbn13(string isbn)
     {
